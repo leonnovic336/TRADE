@@ -1,0 +1,66 @@
+# OMNI-TRADE AI - Additional Requirements
+# Add these to requirements.txt for advanced features
+
+# Advanced AI
+transformers>=4.30.0
+torch>=2.0.0
+torchaudio>=2.0.0
+accelerate>=0.20.0
+
+# Whisper for audio transcription
+openai-whisper>=20231117
+
+# Reinforcement Learning
+stable-baselines3>=2.0.0
+gymnasium>=0.28.0
+
+# High-performance computing
+numba>=0.57.0
+cython>=0.29.0
+
+# Time series
+statsmodels>=0.14.0
+arch>=7.0.0
+prophet>=1.1.0
+
+# Data processing acceleration
+cuDF>=23.08  # GPU-accelerated pandas
+cuML>=23.08  # GPU-accelerated ML
+dask>=2023.0
+dask-cuda>=23.08
+
+# Kafka for real-time streaming
+aiokafka>=0.8.0
+kafka-python>=2.0.2
+
+# ClickHouse
+clickhouse-driver>=0.2.0
+
+# Redis
+aioredis>=2.0.0
+redis>=4.5.0
+
+# Vault
+hvac>=1.1.0
+
+# Cryptography
+cryptography>=41.0.0
+
+# Web framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+websockets>=11.0.0
+
+# Monitoring
+prometheus-client>=0.17.0
+grafana-api>=1.0.0
+
+# Testing
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+httpx>=0.24.0
+
+# Utilities
+orjson>=3.9.0  # Fast JSON
+msgpack>=1.0.0  # Fast serialization
+xxhash>=3.3.0  # Fast hashing

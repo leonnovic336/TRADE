@@ -1,0 +1,341 @@
+# OMNI-TRADE AI - Infrastructure as Code
+# Kubernetes deployment manifests for production deployment
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trading-prod
+  labels:
+    name: trading-prod
+
+---
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omnitrade-config
+  namespace: trading-prod
+data:
+  config.yaml: |
+    trading:
+      mode: paper  # Change to 'live' for production
+      autonomous_trading: true
+      min_confidence_threshold: 0.75
+      watchlist:
+        - AAPL
+        - GOOGL
+        - MSFT
+        - TSLA
+        - AMZN
+    
+    ai:
+      sentiment_model: "ProsusAI/finbert"
+      analysis_weights:
+        technical: 0.25
+        fundamental: 0.20
+        sentiment: 0.25
+        macro: 0.15
+        news: 0.15
+    
+    risk_management:
+      default_stop_loss: 0.02
+      default_take_profit: 0.04
+      max_daily_loss: 0.05
+      max_drawdown: 0.15
+      circuit_breaker_threshold: 0.03
+    
+    execution:
+      max_position_size: 0.10
+      hedge_cost_budget: 0.005
+
+---
+# Secret (reference only - use Vault in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: omnitrade-secrets
+  namespace: trading-prod
+type: Opaque
+stringData:
+  # In production, use HashiCorp Vault for secret injection
+  ALPACA_API_KEY: "YOUR_KEY"
+  ALPACA_API_SECRET: "YOUR_SECRET"
+
+---
+# Persistent Volume Claim for audit logs
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: worm-audit-storage
+  namespace: trading-prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard-rwo
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omnitrade-ai-engine
+  namespace: trading-prod
+  labels:
+    app: omnitrade
+    tier: trading
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: omnitrade
+  template:
+    metadata:
+      labels:
+        app: omnitrade
+        tier: trading
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: omnitrade-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      containers:
+      - name: ai-engine
+        image: omnitrade/ai-engine:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        - containerPort: 10000
+          name: grpc
+        env:
+        - name: VAULT_ADDR
+          value: "https://vault.internal:8200"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        envFrom:
+        - secretRef:
+            name: omnitrade-secrets
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "64Gi"
+            cpu: "16"
+            ephemeral-storage: "20Gi"
+          requests:
+            memory: "32Gi"
+            cpu: "8"
+            ephemeral-storage: "10Gi"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: audit-storage
+          mountPath: /var/log/audit
+        - name: tmp-storage
+          mountPath: /tmp
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+      volumes:
+      - name: config
+        configMap:
+          name: omnitrade-config
+      - name: audit-storage
+        persistentVolumeClaim:
+          claimName: worm-audit-storage
+      - name: tmp-storage
+        emptyDir:
+          sizeLimit: 10Gi
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: omnitrade-service
+  namespace: trading-prod
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    name: http
+  - port: 9090
+    targetPort: 9090
+    name: metrics
+  - port: 10000
+    targetPort: 10000
+    name: grpc
+  selector:
+    app: omnitrade
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: omnitrade-hpa
+  namespace: trading-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: omnitrade-ai-engine
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: omnitrade-pdb
+  namespace: trading-prod
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: omnitrade
+
+---
+# Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: omnitrade-network-policy
+  namespace: trading-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: omnitrade
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for external APIs
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: clickhouse
+    ports:
+    - protocol: TCP
+      port: 9000
+
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: omnitrade-sa
+  namespace: trading-prod
+---
+# RBAC
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: omnitrade-role
+  namespace: trading-prod
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: omnitrade-rolebinding
+  namespace: trading-prod
+subjects:
+- kind: ServiceAccount
+  name: omnitrade-sa
+  namespace: trading-prod
+roleRef:
+  kind: Role
+  name: omnitrade-role
+  apiGroup: rbac.authorization.k8s.io

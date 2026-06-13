@@ -1,0 +1,46 @@
+# AI-Powered Trading Bot Requirements
+# Install with: pip install -r requirements.txt
+
+# Core
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+
+# Data Sources
+yfinance>=0.2.0
+aiohttp>=3.8.0
+beautifulsoup4>=4.10.0
+lxml>=4.9.0
+
+# AI/ML
+transformers>=4.30.0
+torch>=2.0.0
+
+# Trading APIs
+# alpaca-trade-api>=1.5.0  # Uncomment when using Alpaca
+
+# Dashboard
+dash>=2.0.0
+plotly>=5.10.0
+
+# Configuration
+pyyaml>=6.0
+python-dotenv>=0.19.0
+
+# Utilities
+python-dateutil>=2.8.0
+requests>=2.28.0
+
+# Web framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Monitoring
+prometheus-client>=0.17.0
+
+# Storage
+redis>=4.5.0
+
+# Development
+pytest>=7.0.0
+pytest-asyncio>=0.18.0
