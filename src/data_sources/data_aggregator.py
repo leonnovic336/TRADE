@@ -289,7 +289,7 @@ class DataAggregator:
             "news_api": 100,  # requests per day
             "finnhub": 60,    # requests per minute
             "alpha_vantage": 5,  # requests per minute
-            "twitter": 450",  # requests per 15 min
+            "twitter": 450,  # requests per 15 min
         }
         
         # Cache

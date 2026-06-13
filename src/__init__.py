@@ -6,40 +6,94 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .config import load_config, get_config
-from .data_sources.data_aggregator import DataAggregator
-from .data_sources.advanced_data_ingester import (
-    AdvancedDataAggregator,
-    ClimateDataIngester,
-    GeopoliticalIngester,
-    DarkPoolIngester,
-    HighFrequencyDataIngester,
-    DataPoisoningDetector,
-)
-from .advanced_ai.multi_modal_engine import (
-    MultiModalAIEngine,
-    MultiModalSignal,
-    VPINCalculator,
-    HawkesProcessAnalyzer,
-)
-from .execution.zero_loss_executor import (
-    ZeroLossExecutor,
-    DeltaHedgingEngine,
-    StatisticalArbitrageEngine,
-    DarkPoolScanner,
-)
-from .trading_engine.trading_engine import TradingEngine, OrderSide
-from .risk_management.risk_manager import RiskManager
-from .storage.storage_manager import StorageManager, AuditLogger
-from .security.security import APICredentialManager, NetworkSecurity
-from .monitoring.monitoring import (
-    MetricsCollector,
-    PrometheusExporter,
-    HealthChecker,
-    KillSwitch,
-)
+
+# Try to import optional modules, fail gracefully
+try:
+    from .data_sources.data_aggregator import DataAggregator
+except ImportError:
+    DataAggregator = None
+
+try:
+    from .data_sources.advanced_data_ingester import (
+        AdvancedDataAggregator,
+        ClimateDataIngester,
+        GeopoliticalIngester,
+        DarkPoolIngester,
+        HighFrequencyDataIngester,
+        DataPoisoningDetector,
+    )
+except ImportError:
+    AdvancedDataAggregator = None
+    ClimateDataIngester = None
+    GeopoliticalIngester = None
+    DarkPoolIngester = None
+    HighFrequencyDataIngester = None
+    DataPoisoningDetector = None
+
+try:
+    from .advanced_ai.multi_modal_engine import (
+        MultiModalAIEngine,
+        MultiModalSignal,
+        VPINCalculator,
+        HawkesProcessAnalyzer,
+    )
+except ImportError:
+    MultiModalAIEngine = None
+    MultiModalSignal = None
+    VPINCalculator = None
+    HawkesProcessAnalyzer = None
+
+try:
+    from .execution.zero_loss_executor import (
+        ZeroLossExecutor,
+        DeltaHedgingEngine,
+        StatisticalArbitrageEngine,
+        DarkPoolScanner,
+    )
+except ImportError:
+    ZeroLossExecutor = None
+    DeltaHedgingEngine = None
+    StatisticalArbitrageEngine = None
+    DarkPoolScanner = None
+
+try:
+    from .trading_engine.trading_engine import TradingEngine, OrderSide
+except ImportError:
+    TradingEngine = None
+    OrderSide = None
+
+try:
+    from .risk_management.risk_manager import RiskManager
+except ImportError:
+    RiskManager = None
+
+try:
+    from .storage.storage_manager import StorageManager, AuditLogger
+except ImportError:
+    StorageManager = None
+    AuditLogger = None
+
+try:
+    from .security.security import APICredentialManager, NetworkSecurity
+except ImportError:
+    APICredentialManager = None
+    NetworkSecurity = None
+
+try:
+    from .monitoring.monitoring import (
+        MetricsCollector,
+        PrometheusExporter,
+        HealthChecker,
+        KillSwitch,
+    )
+except ImportError:
+    MetricsCollector = None
+    PrometheusExporter = None
+    HealthChecker = None
+    KillSwitch = None
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +105,9 @@ class OmniTradeState:
     is_paused: bool = False
     mode: str = "paper"
     last_update: datetime = None
-    errors: List[str = None]
+    errors: List[str] = field(default_factory=list)
     
     def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
         if self.last_update is None:
             self.last_update = datetime.now()
 

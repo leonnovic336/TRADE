@@ -11,7 +11,6 @@ from .trading_concepts import (
     Position,
     StrategyType,
     Strategy,
-    RiskMetrics,
     TradingKnowledgeBase,
     TRADING_KB,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "Position",
     "StrategyType",
     "Strategy",
-    "RiskMetrics",
     "TradingKnowledgeBase",
     "TRADING_KB",
     # Strategies

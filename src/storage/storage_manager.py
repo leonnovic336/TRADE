@@ -7,7 +7,7 @@ import logging
 import json
 import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from collections import deque
 import sqlite3
